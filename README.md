@@ -1,6 +1,6 @@
 
 ![](assets/BananaCatByHabibi.gif)
-
+<br><br>
 <a href="https://github.com/CertifiedHabibi/CertifiedHabibi">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/CertifiedHabibi/CertifiedHabibi/main/dark_mode.svg">
@@ -8,11 +8,7 @@
   </picture>
 </a>
 
-<link
-  rel="stylesheet"
-  href="https://cdn.jsdelivr.net/gh/dheereshag/coloured-icons@master/app/ci.min.css"
-/>
-
+<br><br>
 <p align="center">
 <a href="https://www.instagram.com/kirbyspixels/">
   <img height="50" src="assets/Instragram.png"/>

@@ -17,18 +17,19 @@ QUERY_COUNT = {
 BIRTHDAY      = datetime.datetime(2005, 10, 26)
 PROFILE_IMAGE = 'assets/Me.png'
 
-OS_INFO    = 'Windows 11, Android 14'
-HOST_INFO  = 'MIT World Peace University, Pune'
-KERNEL_INFO= 'Cloud Computing Student'
-IDE_INFO   = 'WebStorm, PyCharm, Rider, VSCode, VS'
-LANG_PROG  = 'Python, JavaScript, C++, C#, Lua'
-LANG_COMP  = 'HTML, CSS, JSON, LaTeX, YAML'
-LANG_REAL  = 'English, Hindi, Gujarati'
-HOBBY_SW   = 'Game Modding, Pixel Art'
-HOBBY_HW   = 'Playing the Violin, Playing Squash or Table Tennis'
-EMAIL      = 'fxswift2610@gmail.com'
-LINKEDIN   = 'CertifiedHabibi'
-DISCORD    = 'certified._.habibi'
+OS_INFO     = 'Windows 11, Android 14'
+HOST_INFO   = 'MIT World Peace University, Pune'
+KERNEL_INFO = 'Cloud Computing Student'
+IDE_INFO    = 'WebStorm, PyCharm, Rider, VSCode, VS'
+LANG_PROG   = 'Python, JavaScript, C++, C#, Lua'
+LANG_COMP   = 'HTML, CSS, JSON, LaTeX, YAML'
+LANG_REAL   = 'English, Hindi, Gujarati'
+HOBBY_SW    = 'Game Modding, Pixel Art'
+HOBBY_HW    = 'Playing the Violin, Playing Squash or Table Tennis'
+EMAIL       = 'fxswift2610@gmail.com'
+LINKEDIN    = 'CertifiedHabibi'
+DISCORD     = 'certified._.habibi'
+
 
 def daily_readme(birthday):
     diff = relativedelta.relativedelta(datetime.datetime.today(), birthday)
@@ -183,9 +184,7 @@ def cache_builder(edges, comment_size, force_cache, loc_add=0, loc_del=0):
         with open(filename, 'r') as f:
             data = f.readlines()
     except FileNotFoundError:
-        data = []
-        if comment_size > 0:
-            data = ['Cache line.\n'] * comment_size
+        data = ['Cache line.\n'] * comment_size if comment_size > 0 else []
         with open(filename, 'w') as f:
             f.writelines(data)
 
@@ -296,52 +295,52 @@ def formatter(query_type, difference, funct_return=False, whitespace=0):
         return f"{'{:,}'.format(funct_return): <{whitespace}}"
     return funct_return
 
+
 def generate_svg(filename, mode, age_data, commit_data, star_data,
                  repo_data, contrib_data, follower_data, loc_data):
-
     try:
         with open(PROFILE_IMAGE, 'rb') as f:
             img_b64 = base64.b64encode(f.read()).decode()
-        ext  = PROFILE_IMAGE.rsplit('.', 1)[-1].lower()
-        mime = 'image/jpeg' if ext in ('jpg', 'jpeg') else 'image/png'
+        ext      = PROFILE_IMAGE.rsplit('.', 1)[-1].lower()
+        mime     = 'image/jpeg' if ext in ('jpg', 'jpeg') else 'image/png'
         img_src  = f'data:{mime};base64,{img_b64}'
         has_image = True
     except FileNotFoundError:
         has_image = False
         img_src   = ''
-        print(f'Warning: {PROFILE_IMAGE} not found. SVG will have no image.')
+        print(f'Warning: {PROFILE_IMAGE} not found — SVG will render without image.')
 
     if mode == 'dark':
-        BG       = '#1e2030'
-        LABEL    = '#e5a050'
-        VALUE    = '#cdd6f4'
-        HEADER   = '#89b4fa'
-        SEP      = '#45475a'
-        DOT      = '#585b70'
-        SECTION  = '#cba6f7'
-        PREFIX   = '#6c7086'
-        LOC_ADD  = '#a6e3a1'
-        LOC_DEL  = '#f38ba8'
-        CONTRIB  = '#f9e2af'
+        BG      = '#22272e'
+        LABEL   = '#e6943a'
+        VALUE   = '#cdd9e5'
+        HEADER  = '#e6943a'
+        SEP     = '#444c56'
+        DOT     = '#444c56'
+        SECTION = '#cdd9e5'
+        PREFIX  = '#768390'
+        LOC_ADD = '#3fb950'
+        LOC_DEL = '#f85149'
+        CONTRIB = '#e3b341'
     else:
-        BG       = '#dce0e8'
-        LABEL    = '#8c5e20'
-        VALUE    = '#4c4f69'
-        HEADER   = '#1e66f5'
-        SEP      = '#9ca0b0'
-        DOT      = '#9ca0b0'
-        SECTION  = '#8839ef'
-        PREFIX   = '#9ca0b0'
-        LOC_ADD  = '#40a02b'
-        LOC_DEL  = '#d20f39'
-        CONTRIB  = '#df8e1d'
+        BG      = '#ffffff'
+        LABEL   = '#953800'
+        VALUE   = '#24292f'
+        HEADER  = '#953800'
+        SEP     = '#d0d7de'
+        DOT     = '#d0d7de'
+        SECTION = '#24292f'
+        PREFIX  = '#57606a'
+        LOC_ADD = '#1a7f37'
+        LOC_DEL = '#cf222e'
+        CONTRIB = '#9a6700'
 
     W, H         = 960, 494
-    IMG_X, IMG_Y = 18, 18
-    IMG_W, IMG_H = 345, 458
-    TX = 382
-    LH = 19
-    FS = 13
+    IMG_X, IMG_Y = 18, 50
+    IMG_W, IMG_H = 345, 430
+    TX   = 382
+    LH   = 19
+    FS   = 13
     FONT = (
         "font-family=\"'Courier New',Courier,monospace\" "
         f"font-size=\"{FS}\""
@@ -358,9 +357,7 @@ def generate_svg(filename, mode, age_data, commit_data, star_data,
             f'<tspan fill="{c}">{e(s)}</tspan>'
             for s, c in parts
         )
-        elements.append(
-            f'<text x="{TX}" y="{y[0]}" {FONT}>{spans}</text>'
-        )
+        elements.append(f'<text x="{TX}" y="{y[0]}" {FONT}>{spans}</text>')
         y[0] += LH
 
     def blank():
@@ -377,20 +374,19 @@ def generate_svg(filename, mode, age_data, commit_data, star_data,
     def data_line(label, value, col=30):
         d = dots(label, col)
         line([
-            ('. ', PREFIX),
-            (label, LABEL),
-            (': ', VALUE),
+            ('. ',    PREFIX),
+            (label,   LABEL),
+            (': ',    VALUE),
             (d + ' ', DOT),
-            (value, VALUE),
+            (value,   VALUE),
         ])
 
     def section_header(title, width=62):
         dashes = '─' * max(1, width - len(title) - 3)
         line([(f'- {title} ', SECTION), (dashes, SEP)])
 
-    hdr    = 'neel@sheth '
-    dashes = '─' * max(1, 62 - len(hdr))
-    line([(hdr, HEADER), (dashes, SEP)])
+    hdr = 'neel@sheth '
+    line([(hdr, HEADER), ('─' * max(1, 62 - len(hdr)), SEP)])
 
     data_line('OS',     OS_INFO)
     data_line('Uptime', age_data)
@@ -416,57 +412,49 @@ def generate_svg(filename, mode, age_data, commit_data, star_data,
 
     section_header('GitHub Stats')
 
-    r_val = str(repo_data)
-    c_val = str(contrib_data)
-    s_val = f'{star_data:,}' if isinstance(star_data, int) else str(star_data)
+    r_val  = str(repo_data)
+    c_val  = str(contrib_data)
+    s_val  = f'{star_data:,}' if isinstance(star_data, int) else str(star_data)
     r_dots = '.' * max(1, 6  - len(r_val))
     s_dots = '.' * max(1, 14 - len(s_val))
     line([
-        ('. ', PREFIX),
-        ('Repos', LABEL), (': ', VALUE),
-        (r_dots + ' ', DOT),
-        (r_val, VALUE),
-        (' {Contributed: ', CONTRIB),
-        (c_val, CONTRIB),
-        ('} | ', VALUE),
-        ('Stars', LABEL), (': ', VALUE),
-        (s_dots + ' ', DOT),
-        (s_val, VALUE),
+        ('. ',              PREFIX),
+        ('Repos',           LABEL),  (': ',  VALUE),
+        (r_dots + ' ',      DOT),    (r_val, VALUE),
+        (' {Contributed: ', CONTRIB), (c_val, CONTRIB), ('} | ', VALUE),
+        ('Stars',           LABEL),  (': ',  VALUE),
+        (s_dots + ' ',      DOT),    (s_val, VALUE),
     ])
 
-    cm_val = f'{commit_data:,}' if isinstance(commit_data, int) else str(commit_data)
-    fl_val = str(follower_data)
+    cm_val  = f'{commit_data:,}' if isinstance(commit_data, int) else str(commit_data)
+    fl_val  = str(follower_data)
     cm_dots = '.' * max(1, 22 - len(cm_val))
     fl_dots = '.' * max(1, 9  - len(fl_val))
     line([
-        ('. ', PREFIX),
-        ('Commits', LABEL), (': ', VALUE),
-        (cm_dots + ' ', DOT),
-        (cm_val, VALUE),
-        (' | ', VALUE),
-        ('Followers', LABEL), (': ', VALUE),
-        (fl_dots + ' ', DOT),
-        (fl_val, VALUE),
+        ('. ',          PREFIX),
+        ('Commits',     LABEL),  (': ', VALUE),
+        (cm_dots + ' ', DOT),   (cm_val, VALUE),
+        (' | ',         VALUE),
+        ('Followers',   LABEL),  (': ', VALUE),
+        (fl_dots + ' ', DOT),   (fl_val, VALUE),
     ])
 
     loc_total = loc_data[2] if len(loc_data) > 2 else '0'
     loc_add   = loc_data[0]
     loc_del   = loc_data[1]
     line([
-        ('. ', PREFIX),
-        ('Lines of Code', LABEL), (': ', VALUE),
-        (str(loc_total), VALUE),
-        (' ( ', VALUE),
-        (str(loc_add), LOC_ADD),
-        ('++,  ', VALUE),
-        (str(loc_del), LOC_DEL),
-        ('-- )', VALUE),
+        ('. ',            PREFIX),
+        ('Lines of Code', LABEL), (': ',     VALUE),
+        (str(loc_total),  VALUE),
+        (' ( ',           VALUE),
+        (str(loc_add),    LOC_ADD), ('++,  ', VALUE),
+        (str(loc_del),    LOC_DEL), ('-- )',  VALUE),
     ])
 
     clip = (
         f'<clipPath id="imgclip">'
         f'<rect x="{IMG_X}" y="{IMG_Y}" width="{IMG_W}" '
-        f'height="{IMG_H}" rx="8"/>'
+        f'height="{IMG_H}" rx="6"/>'
         f'</clipPath>'
     )
 
@@ -475,6 +463,7 @@ def generate_svg(filename, mode, age_data, commit_data, star_data,
         f'x="{IMG_X}" y="{IMG_Y}" '
         f'width="{IMG_W}" height="{IMG_H}" '
         f'preserveAspectRatio="xMidYMid meet" '
+        f'style="image-rendering: pixelated;" '
         f'clip-path="url(#imgclip)"/>'
         if has_image else ''
     )
@@ -495,6 +484,7 @@ def generate_svg(filename, mode, age_data, commit_data, star_data,
         f.write(svg)
     print(f'  ✓ Written {filename}')
 
+
 if __name__ == '__main__':
     print('Calculation times:')
 
@@ -502,7 +492,7 @@ if __name__ == '__main__':
     OWNER_ID, acc_date = user_data
     formatter('account data', user_time)
 
-    age_data,    age_time    = perf_counter(daily_readme, BIRTHDAY)
+    age_data, age_time = perf_counter(daily_readme, BIRTHDAY)
     formatter('age', age_time)
 
     total_loc, loc_time = perf_counter(
