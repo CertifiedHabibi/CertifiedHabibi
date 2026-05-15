@@ -462,7 +462,7 @@ def generate_svg(filename, mode, age_data, commit_data, star_data,
         f'<image href="{img_src}" '
         f'x="{IMG_X}" y="{IMG_Y}" '
         f'width="{IMG_W}" height="{IMG_H}" '
-        f'preserveAspectRatio="xMidYMid meet" '
+        f'preserveAspectRatio="xMidYMid slice" '
         f'style="image-rendering: pixelated;" '
         f'clip-path="url(#imgclip)"/>'
         if has_image else ''
