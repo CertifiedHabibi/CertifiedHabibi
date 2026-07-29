@@ -52,7 +52,7 @@ def simple_request(func_name, query, variables):
     raise Exception(func_name, 'failed with', req.status_code, req.text, QUERY_COUNT)
 
 
-def graph_repos_stars(count_type, owner_affiliation, cursor=None):
+def graph_repos_stars(count_type, owner_affiliation, cursor=None, total=0):
     query_count('graph_repos_stars')
     query = '''
     query ($owner_affiliation: [RepositoryAffiliation], $login: String!, $cursor: String) {
@@ -73,13 +73,19 @@ def graph_repos_stars(count_type, owner_affiliation, cursor=None):
     }'''
     variables = {'owner_affiliation': owner_affiliation, 'login': USER_NAME, 'cursor': cursor}
     req = simple_request(graph_repos_stars.__name__, query, variables)
+    data = req.json()['data']['user']['repositories']
     if count_type == 'repos':
-        return req.json()['data']['user']['repositories']['totalCount']
+        return data['totalCount']
     elif count_type == 'stars':
-        return sum(
+        total += sum(
             n['node']['stargazers']['totalCount']
-            for n in req.json()['data']['user']['repositories']['edges']
+            for n in data['edges']
+            if n['node'] is not None
         )
+        if data['pageInfo']['hasNextPage']:
+            return graph_repos_stars(count_type, owner_affiliation,
+                                     data['pageInfo']['endCursor'], total)
+        return total
 
 
 def recursive_loc(owner, repo_name, data, cache_comment,
@@ -340,7 +346,7 @@ def generate_svg(filename, mode, age_data, commit_data, star_data,
     IMG_W, IMG_H = 345, 430
     TX   = 382
     LH   = 19
-    FS   = 13
+    FS   = 15
     FONT = (
         "font-family=\"'Courier New',Courier,monospace\" "
         f"font-size=\"{FS}\""
@@ -444,7 +450,7 @@ def generate_svg(filename, mode, age_data, commit_data, star_data,
     loc_del   = loc_data[1]
     line([
         ('. ',            PREFIX),
-        ('Lines of Code', LABEL), (': ',     VALUE),
+        ('Lines of Code on GitHub', LABEL), (': ',     VALUE),
         (str(loc_total),  VALUE),
         (' ( ',           VALUE),
         (str(loc_add),    LOC_ADD), ('++,  ', VALUE),
