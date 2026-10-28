@@ -3,6 +3,8 @@ import base64
 import os
 import time
 import hashlib
+import struct
+import textwrap
 import requests
 from dateutil import relativedelta
 from xml.sax.saxutils import escape as xml_escape
@@ -302,189 +304,178 @@ def formatter(query_type, difference, funct_return=False, whitespace=0):
     return funct_return
 
 
+FONT_FILE = 'assets/PressStart2PFont/PressStart2P.ttf'
+
+
+def png_size(path):
+    with open(path, 'rb') as f:
+        head = f.read(24)
+    if head[:8] == b'\x89PNG\r\n\x1a\n':
+        return struct.unpack('>II', head[16:24])
+    return None
+
+
 def generate_svg(filename, mode, age_data, commit_data, star_data,
                  repo_data, contrib_data, follower_data, loc_data):
     try:
         with open(PROFILE_IMAGE, 'rb') as f:
-            img_b64 = base64.b64encode(f.read()).decode()
-        ext      = PROFILE_IMAGE.rsplit('.', 1)[-1].lower()
-        mime     = 'image/jpeg' if ext in ('jpg', 'jpeg') else 'image/png'
-        img_src  = f'data:{mime};base64,{img_b64}'
+            raw = f.read()
+        ext     = PROFILE_IMAGE.rsplit('.', 1)[-1].lower()
+        mime    = 'image/jpeg' if ext in ('jpg', 'jpeg') else 'image/png'
+        img_src = f'data:{mime};base64,{base64.b64encode(raw).decode()}'
+        img_w, img_h = png_size(PROFILE_IMAGE) or (4, 5)
         has_image = True
     except FileNotFoundError:
-        has_image = False
-        img_src   = ''
-        print(f'Warning: {PROFILE_IMAGE} not found — SVG will render without image.')
+        has_image, img_src, img_w, img_h = False, '', 4, 5
+        print(f'Warning: {PROFILE_IMAGE} not found, SVG will render without image.')
+
+    try:
+        with open(FONT_FILE, 'rb') as f:
+            font_b64 = base64.b64encode(f.read()).decode()
+        font_css = (
+            "@font-face{font-family:'PS2P';"
+            f"src:url(data:font/woff;base64,{font_b64}) format('woff');}}"
+        )
+    except FileNotFoundError:
+        font_css = ''
+        print(f'Warning: {FONT_FILE} not found, falling back to monospace.')
 
     if mode == 'dark':
-        BG      = '#22272e'
-        LABEL   = '#e6943a'
-        VALUE   = '#cdd9e5'
-        HEADER  = '#e6943a'
-        SEP     = '#444c56'
-        DOT     = '#444c56'
-        SECTION = '#cdd9e5'
-        PREFIX  = '#768390'
-        LOC_ADD = '#3fb950'
-        LOC_DEL = '#f85149'
-        CONTRIB = '#e3b341'
+        BG, BORDER   = '#22272e', '#373e47'
+        LABEL, VALUE = '#e6943a', '#cdd9e5'
+        HEADER       = '#e6943a'
+        SEP, DOT     = '#444c56', '#545d68'
+        SECTION      = '#cdd9e5'
+        PREFIX       = '#768390'
+        LOC_ADD, LOC_DEL, CONTRIB = '#57ab5a', '#e5534b', '#e3b341'
     else:
-        BG      = '#ffffff'
-        LABEL   = '#953800'
-        VALUE   = '#24292f'
-        HEADER  = '#953800'
-        SEP     = '#d0d7de'
-        DOT     = '#d0d7de'
-        SECTION = '#24292f'
-        PREFIX  = '#57606a'
-        LOC_ADD = '#1a7f37'
-        LOC_DEL = '#cf222e'
-        CONTRIB = '#9a6700'
+        BG, BORDER   = '#ffffff', '#d0d7de'
+        LABEL, VALUE = '#953800', '#24292f'
+        HEADER       = '#953800'
+        SEP, DOT     = '#d0d7de', '#afb8c1'
+        SECTION      = '#24292f'
+        PREFIX       = '#57606a'
+        LOC_ADD, LOC_DEL, CONTRIB = '#1a7f37', '#cf222e', '#9a6700'
 
-    W, H         = 960, 494
-    IMG_X, IMG_Y = 18, 50
-    IMG_W, IMG_H = 345, 430
-    TX   = 382
-    LH   = 19
-    FS   = 15
+    FS, LH, GAP, PAD = 10, 18, 10, 26
+    VAL_COL, MAX_VAL = 15, 32
+    MAX_IMG_W        = 380
+    GUTTER           = 28
+    TEXT_W           = (VAL_COL + MAX_VAL) * FS
+
     FONT = (
-        "font-family=\"'Courier New',Courier,monospace\" "
-        f"font-size=\"{FS}\""
+        "font-family=\"'PS2P','Courier New',Courier,monospace\" "
+        f'font-size="{FS}" xml:space="preserve"'
     )
 
     def e(s):
         return xml_escape(str(s))
 
-    elements = []
-    y = [50]
+    texts, rules = [], []
+    y = [PAD + FS + 2]
 
-    def line(parts):
-        spans = ''.join(
-            f'<tspan fill="{c}">{e(s)}</tspan>'
-            for s, c in parts
-        )
-        elements.append(f'<text x="{TX}" y="{y[0]}" {FONT}>{spans}</text>')
+    def text_line(parts, indent=0):
+        spans = ''.join(f'<tspan fill="{c}">{e(s)}</tspan>' for s, c in parts)
+        texts.append((indent * FS, y[0], spans))
         y[0] += LH
 
-    def blank():
-        elements.append(
-            f'<text x="{TX}" y="{y[0]}" {FONT}>'
-            f'<tspan fill="{PREFIX}">.</tspan></text>'
-        )
-        y[0] += LH
+    def header(title, color):
+        rules.append(((len(title) + 1) * FS, y[0] - FS // 2 + 1))
+        text_line([(title, color)])
 
-    def dots(label, col=30):
-        n = col - len(f'. {label}: ')
-        return '.' * max(1, n)
+    def row(label, value):
+        parts = [(value, VALUE)] if isinstance(value, str) else value
+        used  = 2 + len(label) + 1
+        dots  = '.' * max(1, VAL_COL - used - 2)
+        head  = [('. ', PREFIX), (label, LABEL), (':', VALUE), (' ' + dots + ' ', DOT)]
+        if len(parts) > 1:
+            text_line(head + parts)
+            return
+        chunks = textwrap.wrap(parts[0][0], MAX_VAL) or ['']
+        text_line(head + [(chunks[0], parts[0][1])])
+        for chunk in chunks[1:]:
+            text_line([(chunk, parts[0][1])], indent=VAL_COL)
 
-    def data_line(label, value, col=30):
-        d = dots(label, col)
-        line([
-            ('. ',    PREFIX),
-            (label,   LABEL),
-            (': ',    VALUE),
-            (d + ' ', DOT),
-            (value,   VALUE),
-        ])
+    header('neel@sheth', HEADER)
+    row('OS',     OS_INFO)
+    row('Uptime', age_data)
+    row('Host',   HOST_INFO)
+    row('Kernel', KERNEL_INFO)
+    row('IDE',    IDE_INFO)
+    y[0] += GAP
 
-    def section_header(title, width=62):
-        dashes = '─' * max(1, width - len(title) - 3)
-        line([(f'- {title} ', SECTION), (dashes, SEP)])
+    header('Languages', SECTION)
+    row('Prog',   LANG_PROG)
+    row('Markup', LANG_COMP)
+    row('Spoken', LANG_REAL)
+    y[0] += GAP
 
-    hdr = 'neel@sheth '
-    line([(hdr, HEADER), ('─' * max(1, 62 - len(hdr)), SEP)])
+    header('Hobbies', SECTION)
+    row('Software', HOBBY_SW)
+    row('Hardware', HOBBY_HW)
+    y[0] += GAP
 
-    data_line('OS',     OS_INFO)
-    data_line('Uptime', age_data)
-    data_line('Host',   HOST_INFO)
-    data_line('Kernel', KERNEL_INFO)
-    data_line('IDE',    IDE_INFO)
-    blank()
+    header('Contact', SECTION)
+    row('Email',    EMAIL)
+    row('LinkedIn', LINKEDIN)
+    row('Discord',  DISCORD)
+    y[0] += GAP
 
-    data_line('Languages.Programming', LANG_PROG, col=34)
-    data_line('Languages.Computer',    LANG_COMP, col=34)
-    data_line('Languages.Real',        LANG_REAL, col=34)
-    blank()
-
-    data_line('Hobbies.Software', HOBBY_SW)
-    data_line('Hobbies.Hardware', HOBBY_HW)
-    blank()
-
-    section_header('Contact')
-    data_line('Email',    EMAIL)
-    data_line('LinkedIn', LINKEDIN)
-    data_line('Discord',  DISCORD)
-    blank()
-
-    section_header('GitHub Stats')
-
-    r_val  = str(repo_data)
-    c_val  = str(contrib_data)
-    s_val  = f'{star_data:,}' if isinstance(star_data, int) else str(star_data)
-    r_dots = '.' * max(1, 6  - len(r_val))
-    s_dots = '.' * max(1, 14 - len(s_val))
-    line([
-        ('. ',              PREFIX),
-        ('Repos',           LABEL),  (': ',  VALUE),
-        (r_dots + ' ',      DOT),    (r_val, VALUE),
-        (' {Contributed: ', CONTRIB), (c_val, CONTRIB), ('} | ', VALUE),
-        ('Stars',           LABEL),  (': ',  VALUE),
-        (s_dots + ' ',      DOT),    (s_val, VALUE),
-    ])
-
-    cm_val  = f'{commit_data:,}' if isinstance(commit_data, int) else str(commit_data)
-    fl_val  = str(follower_data)
-    cm_dots = '.' * max(1, 22 - len(cm_val))
-    fl_dots = '.' * max(1, 9  - len(fl_val))
-    line([
-        ('. ',          PREFIX),
-        ('Commits',     LABEL),  (': ', VALUE),
-        (cm_dots + ' ', DOT),   (cm_val, VALUE),
-        (' | ',         VALUE),
-        ('Followers',   LABEL),  (': ', VALUE),
-        (fl_dots + ' ', DOT),   (fl_val, VALUE),
-    ])
-
+    header('GitHub Stats', SECTION)
+    s_val  = f'{star_data:,}'   if isinstance(star_data, int)   else str(star_data)
+    cm_val = f'{commit_data:,}' if isinstance(commit_data, int) else str(commit_data)
+    row('Repos', [(str(repo_data), VALUE),
+                  ('  {Contrib: ', CONTRIB), (str(contrib_data), CONTRIB), ('}', CONTRIB)])
+    row('Stars',     s_val)
+    row('Commits',   cm_val)
+    row('Followers', str(follower_data))
     loc_total = loc_data[2] if len(loc_data) > 2 else '0'
-    loc_add   = loc_data[0]
-    loc_del   = loc_data[1]
-    line([
-        ('. ',            PREFIX),
-        ('Lines of Code on GitHub', LABEL), (': ',     VALUE),
-        (str(loc_total),  VALUE),
-        (' ( ',           VALUE),
-        (str(loc_add),    LOC_ADD), ('++,  ', VALUE),
-        (str(loc_del),    LOC_DEL), ('-- )',  VALUE),
-    ])
+    row('LOC', [(str(loc_total), VALUE), (' (', VALUE),
+                (f'{loc_data[0]}++', LOC_ADD), (' ', VALUE),
+                (f'{loc_data[1]}--', LOC_DEL), (')', VALUE)])
 
-    clip = (
-        f'<clipPath id="imgclip">'
-        f'<rect x="{IMG_X}" y="{IMG_Y}" width="{IMG_W}" '
-        f'height="{IMG_H}" rx="6"/>'
-        f'</clipPath>'
+    H = y[0] - LH + 6 + PAD
+
+    box_h = H - 2 * PAD
+    if has_image:
+        ratio = min(1.0, max(0.75, img_w / img_h))
+        box_w = min(MAX_IMG_W, round(box_h * ratio))
+        TX    = PAD + box_w + GUTTER
+    else:
+        box_w, TX = 0, PAD
+    W = TX + TEXT_W + PAD
+
+    img_el = ''
+    if has_image:
+        img_el = (
+            f'<clipPath id="imgclip"><rect x="{PAD}" y="{PAD}" width="{box_w}" '
+            f'height="{box_h}" rx="6"/></clipPath>'
+            f'<image href="{img_src}" x="{PAD}" y="{PAD}" width="{box_w}" '
+            f'height="{box_h}" preserveAspectRatio="xMidYMid slice" '
+            f'style="image-rendering:pixelated" clip-path="url(#imgclip)"/>'
+        )
+
+    body = [
+        f'<text x="{TX + dx}" y="{ty}" {FONT}>{spans}</text>'
+        for dx, ty, spans in texts
+    ]
+    body += [
+        f'<rect x="{TX + dx}" y="{ry}" width="{TEXT_W - dx}" height="2" fill="{SEP}"/>'
+        for dx, ry in rules
+    ]
+    body = '\n  '.join(body)
+
+    svg = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        f'<svg width="{W}" height="{H}" viewBox="0 0 {W} {H}" '
+        'xmlns="http://www.w3.org/2000/svg">\n'
+        f'  <style>{font_css} text{{text-rendering:optimizeLegibility}}</style>\n'
+        f'  <rect x="0.5" y="0.5" width="{W - 1}" height="{H - 1}" rx="10" '
+        f'fill="{BG}" stroke="{BORDER}"/>\n'
+        f'  {img_el}\n'
+        f'  {body}\n'
+        '</svg>'
     )
-
-    img_el = (
-        f'<image href="{img_src}" '
-        f'x="{IMG_X}" y="{IMG_Y}" '
-        f'width="{IMG_W}" height="{IMG_H}" '
-        f'preserveAspectRatio="xMidYMid slice" '
-        f'style="image-rendering: pixelated;" '
-        f'clip-path="url(#imgclip)"/>'
-        if has_image else ''
-    )
-
-    text_block = '\n  '.join(elements)
-
-    svg = f'''<?xml version="1.0" encoding="UTF-8"?>
-<svg width="{W}" height="{H}" viewBox="0 0 {W} {H}"
-     xmlns="http://www.w3.org/2000/svg"
-     xmlns:xlink="http://www.w3.org/1999/xlink">
-  <defs>{clip}</defs>
-  <rect width="{W}" height="{H}" rx="10" fill="{BG}"/>
-  {img_el}
-  {text_block}
-</svg>'''
 
     with open(filename, 'w', encoding='utf-8') as f:
         f.write(svg)
